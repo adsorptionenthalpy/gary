@@ -108,7 +108,19 @@ main = do
           text <-
             case text' of
               Nothing -> liftIO exitSuccess
-              Just v -> return $ Text.pack v
+              Just v -> do
+                let inputText = Text.pack v
+                let restrictedCommands = ["rm -rf", "sudo rm", "mkfs", "dd if=", "cfdisk", "format"] :: [Text]
+                if any (\restricted -> Text.isInfixOf restricted inputText) restrictedCommands
+                  then do
+                    liftIO $ putStrLn $ red "Warning: This command is in the restricted list!"
+                    confirm <- getInputLine "Execute this command? (y/n): "
+                    case confirm of
+                      Just "y" -> return inputText
+                      _ -> do
+                        liftIO $ putStrLn $ red "Command cancelled."
+                        return "" -- Return empty input to skip processing
+                  else return inputText
           return [User{ content = [ Text{ text } ], name = Nothing }]
         _ -> do
           forM outstandingCalls $ \call -> do
